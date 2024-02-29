@@ -9,54 +9,66 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.widget.TextView;
 
-import com.example.compas_test.R;
-
 public class Main extends Activity implements SensorEventListener {
 
-    private SensorManager sensorManager;
-    private Sensor compassSensor;
-    private TextView compassTextView;
+  private SensorManager sensorManager;
+  private Sensor accelerometer;
+  private Sensor magnetometer;
+  private TextView orientationTextView;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_compass);
+  private float[] accelerometerReading = new float[3];
+  private float[] magnetometerReading = new float[3];
+  private float[] rotationMatrix = new float[9];
+  private float[] orientationAngles = new float[3];
 
-        compassTextView = findViewById(R.id.compassTextView);
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_compass);
 
-        // Получение экземпляра SensorManager
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+    orientationTextView = findViewById(R.id.orientationTextView);
+    sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+    accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+  }
 
-        // Получение компасного датчика
-        compassSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+  @Override
+  protected void onResume() {
+    super.onResume();
+    sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
+    sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_UI);
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    sensorManager.unregisterListener(this);
+  }
+
+  @Override
+  public void onSensorChanged(SensorEvent event) {
+    if (event.sensor == accelerometer) {
+      System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.length);
+    } else if (event.sensor == magnetometer) {
+      System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.length);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Регистрация слушателя для компасного датчика
-        sensorManager.registerListener(this, compassSensor, SensorManager.SENSOR_DELAY_NORMAL);
-    }
+    if (accelerometerReading != null && magnetometerReading != null) {
+      SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading);
+      SensorManager.getOrientation(rotationMatrix, orientationAngles);
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Отмена регистрации слушателя при приостановке активности
-        sensorManager.unregisterListener(this);
-    }
+      float azimuthInDegrees = (float) Math.toDegrees(orientationAngles[0]);
 
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        // Обработка изменения данных с компаса
-        if (event.sensor == compassSensor) {
-            float magneticNorth = event.values[0];
-            // Обновление текстового поля с данными компаса
-            compassTextView.setText("Направление: " + magneticNorth + " градусов");
-        }
-    }
+      if (azimuthInDegrees < 0) {
+        azimuthInDegrees += 360;
+      }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Метод вызывается при изменении точности датчика, но в данном примере не используется
+      orientationTextView.setText("Азимут: " + azimuthInDegrees + " градусов");
     }
+  }
+
+  @Override
+  public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    // Метод вызывается при изменении точности датчика, но в данном примере не используется
+  }
 }
