@@ -1,74 +1,127 @@
 package com.example.compas_test;
 
 import android.app.Activity;
-import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.os.Handler;
+
 
 public class Main extends Activity implements SensorEventListener {
-
-  private SensorManager sensorManager;
-  private Sensor accelerometer;
-  private Sensor magnetometer;
-  private TextView orientationTextView;
-
-  private float[] accelerometerReading = new float[3];
-  private float[] magnetometerReading = new float[3];
-  private float[] rotationMatrix = new float[9];
-  private float[] orientationAngles = new float[3];
+  private ImageView image;
+  private float currentDegree = 0f;
+  private SensorManager mSensorManager;
+  TextView tvHeading;
+  TextView tvMode;
+  TextView tvRotate;
+  private Rotate_v1 rv1;
+  private Rotate_v2 rv2;
+  private float prev;
+  private float curr;
+  private Handler mHandler = new Handler();
+  private boolean isRotating = false;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_compass);
+    rv1 = new Rotate_v1();
+    rv2 = new Rotate_v2();
+    image = (ImageView) findViewById(R.id.imageViewCompass);
 
-    orientationTextView = findViewById(R.id.orientationTextView);
-    sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-    accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-    magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+    tvHeading = (TextView) findViewById(R.id.tvHeading);
+    tvMode = (TextView)findViewById(R.id.tvMode);
+    tvRotate = (TextView) findViewById(R.id.tvRotate);
+    rv1.setCondition();
+    tvMode.setText(rv1.inputTxt());
+
+    mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
-    sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_UI);
+
+    // for the system's orientation sensor registered listeners
+    mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+      SensorManager.SENSOR_DELAY_GAME);
   }
 
   @Override
   protected void onPause() {
     super.onPause();
-    sensorManager.unregisterListener(this);
+    mSensorManager.unregisterListener(this);
   }
+
+  public void onMyClick(View view) {
+    if (rv1.getCondition()) {
+      rv1.setCondition();
+      rv2.setCondition();
+      tvMode.setText(rv2.inputTxt());
+    }
+    else if (rv2.getCondition()) {
+      rv2.setCondition();
+      rv1.setCondition();
+      tvMode.setText(rv1.inputTxt());
+    }
+  }
+
 
   @Override
   public void onSensorChanged(SensorEvent event) {
-    if (event.sensor == accelerometer) {
-      System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.length);
-    } else if (event.sensor == magnetometer) {
-      System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.length);
-    }
 
-    if (accelerometerReading != null && magnetometerReading != null) {
-      SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading);
-      SensorManager.getOrientation(rotationMatrix, orientationAngles);
+    float newDegree = Math.round(event.values[0]);
 
-      float azimuthInDegrees = (float) Math.toDegrees(orientationAngles[0]);
 
-      if (azimuthInDegrees < 0) {
-        azimuthInDegrees += 360;
+    mHandler.postDelayed(() -> {
+      prev = currentDegree;
+      curr = newDegree;
+//      if (curr >= 225 && curr <= 359 && prev >= 0) {
+//        if ((360 - prev + curr) >= 45) {
+//          tvRotate.setText("Go Left!");
+//          isRotating = true;
+//        }
+//      } else if (prev >= 225 && prev <= 359 && curr >= 0) {
+//        if ((360 - prev - curr) >= 45) {
+//          tvRotate.setText("Go Right!");
+//          isRotating = true;
+//        }
+//      } else
+        if (curr - prev >= 45) {
+          tvRotate.setText("Go Left!");
+          isRotating = true;
+        }
+        else if (prev - curr >= 45) {
+          tvRotate.setText("Go Right!");
+          isRotating = true;
+        }
+        else {
+          tvRotate.setText("Go Forward!");
+          isRotating = false;
       }
 
-      orientationTextView.setText("Азимут: " + azimuthInDegrees + " градусов");
-    }
+      if (!isRotating) {
+        mHandler.postDelayed(() -> {
+          if (!isRotating) {
+            tvRotate.setText("Go Forward!");
+          }
+        }, 2000);
+      }
+    }, 1000);
+
+    currentDegree = newDegree;
+    tvHeading.setText("Heading: " + Float.toString(currentDegree) + " degrees");
   }
+
 
   @Override
   public void onAccuracyChanged(Sensor sensor, int accuracy) {
-    // Метод вызывается при изменении точности датчика, но в данном примере не используется
+    // not in use
   }
 }

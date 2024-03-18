@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Compas_test</string>
+    <string name="heading_0_0">Heading: 0.0</string>
+  <string name="change_mode">Change Mode</string>
+  <string name="rotate">rotate</string>
+  <string name="mode">Mode</string>
 </resources>
