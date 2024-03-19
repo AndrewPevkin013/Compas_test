@@ -17,10 +17,7 @@ public class Main extends Activity implements SensorEventListener {
   private float currentDegree = 0f;
   private SensorManager mSensorManager;
   TextView tvHeading;
-  TextView tvMode;
   TextView tvRotate;
-  private Rotate_v1 rv1;
-  private Rotate_v2 rv2;
   private float prev;
   private float curr;
   private Handler mHandler = new Handler();
@@ -30,16 +27,9 @@ public class Main extends Activity implements SensorEventListener {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_compass);
-    rv1 = new Rotate_v1();
-    rv2 = new Rotate_v2();
     image = (ImageView) findViewById(R.id.imageViewCompass);
-
-
     tvHeading = (TextView) findViewById(R.id.tvHeading);
-    tvMode = (TextView)findViewById(R.id.tvMode);
     tvRotate = (TextView) findViewById(R.id.tvRotate);
-    rv1.setCondition();
-    tvMode.setText(rv1.inputTxt());
 
     mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
   }
@@ -58,20 +48,6 @@ public class Main extends Activity implements SensorEventListener {
     super.onPause();
     mSensorManager.unregisterListener(this);
   }
-
-  public void onMyClick(View view) {
-    if (rv1.getCondition()) {
-      rv1.setCondition();
-      rv2.setCondition();
-      tvMode.setText(rv2.inputTxt());
-    }
-    else if (rv2.getCondition()) {
-      rv2.setCondition();
-      rv1.setCondition();
-      tvMode.setText(rv1.inputTxt());
-    }
-  }
-
 
   @Override
   public void onSensorChanged(SensorEvent event) {
