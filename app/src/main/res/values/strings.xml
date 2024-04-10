@@ -4,4 +4,5 @@
   <string name="change_mode">Change Mode</string>
   <string name="rotate">rotate</string>
   <string name="mode">Mode</string>
+    <string name="todo">TODO</string>
 </resources>
