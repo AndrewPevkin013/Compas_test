@@ -5,4 +5,6 @@
   <string name="rotate">rotate</string>
   <string name="mode">Mode</string>
     <string name="todo">TODO</string>
+    <string name="magn">Magn\n</string>
+    <string name="accel">accelerometer\n</string>
 </resources>

@@ -6,98 +6,105 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.view.View;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.Message;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.os.Handler;
 
-
-public class Main extends Activity implements SensorEventListener {
+public class Main extends Activity {
   private ImageView image;
-  private float currentDegree = 0f;
-  private SensorManager mSensorManager;
-  TextView tvHeading;
-  TextView tvRotate;
-  private float prev;
-  private float curr;
-  private Handler mHandler = new Handler();
-  private boolean isRotating = false;
+  private TextView tvMagnetometer;
+  private TextView tvAccelerometer;
+  private SensorManager sensorManager;
+  private Sensor magnetometer;
+  private Sensor accelerometer;
+
+  private SensorHandlerThread sensorHandlerThread;
+  private Handler mainHandler;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_compass);
-    image = (ImageView) findViewById(R.id.imageViewCompass);
-    tvHeading = (TextView) findViewById(R.id.tvHeading);
-    tvRotate = (TextView) findViewById(R.id.tvRotate);
 
-    mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+    image = (ImageView) findViewById(R.id.imageViewCompass);
+    tvMagnetometer = (TextView) findViewById(R.id.tvMagnetometer);
+    tvAccelerometer = (TextView) findViewById(R.id.tvAccelerometer);
+
+    sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+    accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+    sensorHandlerThread = new SensorHandlerThread();
+    sensorHandlerThread.start();
+
+    mainHandler = new Handler(Looper.getMainLooper());
+
+    sensorHandlerThread.setHandler(mainHandler, tvMagnetometer, tvAccelerometer);
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-
-    // for the system's orientation sensor registered listeners
-    mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-      SensorManager.SENSOR_DELAY_GAME);
+    sensorManager.registerListener(sensorHandlerThread, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+    sensorManager.registerListener(sensorHandlerThread, magnetometer, SensorManager.SENSOR_DELAY_GAME);
   }
 
   @Override
   protected void onPause() {
     super.onPause();
-    mSensorManager.unregisterListener(this);
+    sensorManager.unregisterListener(sensorHandlerThread);
+    sensorHandlerThread.quit();
   }
 
-  @Override
-  public void onSensorChanged(SensorEvent event) {
+  private static class SensorHandlerThread extends HandlerThread implements SensorEventListener {
+    private Handler handler;
+    private TextView tvMagnetometer;
+    private TextView tvAccelerometer;
 
-    float newDegree = Math.round(event.values[0]);
+    public SensorHandlerThread() {
+      super("SensorHandlerThread");
+    }
 
+    public void setHandler(Handler handler, TextView tvMagnetometer, TextView tvAccelerometer) {
+      this.handler = handler;
+      this.tvMagnetometer = tvMagnetometer;
+      this.tvAccelerometer = tvAccelerometer;
+    }
 
-    mHandler.postDelayed(() -> {
-      prev = currentDegree;
-      curr = newDegree;
-//      if (curr >= 225 && curr <= 359 && prev >= 0) {
-//        if ((360 - prev + curr) >= 45) {
-//          tvRotate.setText("Go Left!");
-//          isRotating = true;
-//        }
-//      } else if (prev >= 225 && prev <= 359 && curr >= 0) {
-//        if ((360 - prev - curr) >= 45) {
-//          tvRotate.setText("Go Right!");
-//          isRotating = true;
-//        }
-//      } else
-        if (curr - prev >= 45) {
-          tvRotate.setText("Go Left!");
-          isRotating = true;
-        }
-        else if (prev - curr >= 45) {
-          tvRotate.setText("Go Right!");
-          isRotating = true;
-        }
-        else {
-          tvRotate.setText("Go Forward!");
-          isRotating = false;
-      }
+    @Override
+    public void onSensorChanged(final SensorEvent event) {
+      if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+        float azimuth = Math.round(event.values[0]);
+        float pitch = Math.round(event.values[1]);
+        float roll = Math.round(event.values[2]);
 
-      if (!isRotating) {
-        mHandler.postDelayed(() -> {
-          if (!isRotating) {
-            tvRotate.setText("Go Forward!");
+        double tesla = Math.sqrt((azimuth * azimuth) + (pitch * pitch) + (roll * roll));
+        final String text = String.format("\n \n %.0f Тл", tesla);
+
+        handler.post(new Runnable() {
+          @Override
+          public void run() {
+            tvMagnetometer.setText(text);
           }
-        }, 2000);
+        });
+      } else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+        final String text = String.format("X: %.2f,\nY: %.2f,\nZ: %.2f", event.values[0], event.values[1], event.values[2]);
+
+        handler.post(new Runnable() {
+          @Override
+          public void run() {
+            tvAccelerometer.setText(text);
+          }
+        });
       }
-    }, 1000);
+    }
 
-    currentDegree = newDegree;
-    tvHeading.setText("Heading: " + Float.toString(currentDegree) + " degrees");
-  }
-
-
-  @Override
-  public void onAccuracyChanged(Sensor sensor, int accuracy) {
-    // not in use
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+      // not in use
+    }
   }
 }
